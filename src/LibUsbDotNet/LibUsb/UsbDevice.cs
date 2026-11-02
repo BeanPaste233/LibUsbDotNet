@@ -36,6 +36,7 @@ public partial class UsbDevice : IUsbDevice, IDisposable, ICloneable
     /// The <see cref="UsbContext"/> the device originated from.
     /// </summary>
     private readonly UsbContext originatingContext;
+    internal IntPtr NativeDeviceId => device.DangerousGetHandle();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="UsbDevice"/> class.
@@ -57,8 +58,8 @@ public partial class UsbDevice : IUsbDevice, IDisposable, ICloneable
             throw new ArgumentOutOfRangeException(nameof(device));
         }
 
-        this.device = device;
         this.originatingContext = originatingContext;
+        this.device = originatingContext.BindDevice(device);
     }
 
     /// <summary>
@@ -69,6 +70,7 @@ public partial class UsbDevice : IUsbDevice, IDisposable, ICloneable
     /// </returns>
     public IUsbDevice Clone()
     {
+        this.EnsureNotDisposed();
         return new UsbDevice(NativeMethods.RefDevice(this.device), originatingContext);
     }
 
@@ -84,7 +86,7 @@ public partial class UsbDevice : IUsbDevice, IDisposable, ICloneable
         if (!this.disposed)
         {
             // Close the libusb_device_handle if required.
-            this.Close();
+            if (this.IsOpen) this.Close();
 
             // Close the libusb_device handle.
             this.device.Dispose();
@@ -113,7 +115,7 @@ public partial class UsbDevice : IUsbDevice, IDisposable, ICloneable
         if (obj is not UsbDevice usbDevice)
             return false;
 
-        return GetHashCode() == usbDevice.GetHashCode();
+        return NativeDeviceId == usbDevice.NativeDeviceId;
     }
 
     /// <summary>

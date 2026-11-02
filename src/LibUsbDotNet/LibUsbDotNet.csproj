@@ -3,9 +3,11 @@
   <PropertyGroup>
     <Description>.NET USB library, which acts as a wrapper for libusb-1.0. You can write applications that with on all operating systems and drivers without modification. Lots of example code. Open source software hosted on GitHub.</Description>
     <AssemblyTitle>LibUsbDotNet</AssemblyTitle>
+    <PackageId>BeanPaste.LibUsbDotNet</PackageId>
     <Authors>Travis Robinson;Stevie-O;Quamotion</Authors>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <PackageProjectUrl>https://github.com/LibUsbDotNet/LibUsbDotNet/</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/BeanPaste233/LibUsbDotNet/</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/BeanPaste233/LibUsbDotNet.git</RepositoryUrl>
     <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
     <PackageIcon>icon.png</PackageIcon>
     <RepositoryType>git</RepositoryType>
@@ -39,13 +41,20 @@
   </PropertyGroup>
   
   <ItemGroup>
-    <PackageReference Include="Nerdbank.GitVersioning" Version="3.9.50" PrivateAssets="all" />
+    <PackageReference Include="Nerdbank.GitVersioning" Version="3.9.50" PrivateAssets="all" Condition="'$(WindowsCandidate)' != 'true'" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.203" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="..\..\Readme.md" Pack="true" PackagePath="\" />
     <None Include="..\..\icon.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+  <!-- 本地 Windows 验收包显式携带匹配 RID 的原生库；不改变默认打包行为。 -->
+  <ItemGroup Condition="'$(WindowsCandidate)' == 'true'">
+    <None Include="$(WindowsCandidateNativeRoot)/win-x64/libusb-1.0.dll" Pack="true" PackagePath="runtimes/win-x64/native/" />
+    <None Include="$(WindowsCandidateNativeRoot)/win-x86/libusb-1.0.dll" Pack="true" PackagePath="runtimes/win-x86/native/" />
+    <None Include="$(WindowsCandidateNotice)" Pack="true" PackagePath="" />
+    <None Include="../../LICENSE" Pack="true" PackagePath="LICENSE.LIBUSBDOTNET" />
   </ItemGroup>
 </Project>
 

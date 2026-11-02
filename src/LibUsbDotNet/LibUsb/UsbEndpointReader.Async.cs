@@ -1,10 +1,23 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace LibUsbDotNet.LibUsb;
 
 public partial class UsbEndpointReader
 {
+    /// <summary>异步读取并支持取消；最终原生回调到达前保持缓冲区固定。</summary>
+    /// <param name="buffer">接收缓冲区，Task 完成前不得复用。</param>
+    /// <param name="timeout">原生传输超时，单位毫秒。</param>
+    /// <param name="cancellationToken">取消请求；实际完成前不会提前返回。</param>
+    /// <returns>原生状态和实际长度；请求取消且原生返回取消时抛 OperationCanceledException。</returns>
+    public virtual Task<(Error error, int transferLength)> ReadAsync(Memory<byte> buffer, int timeout, CancellationToken cancellationToken) =>
+        TransferAsync(buffer, timeout, cancellationToken);
+
+    /// <summary>对指定接收区间执行可取消异步读取。</summary>
+    public virtual Task<(Error error, int transferLength)> ReadAsync(Memory<byte> buffer, int offset, int length, int timeout, CancellationToken cancellationToken) =>
+        TransferAsync(buffer.Slice(offset, length), timeout, cancellationToken);
+
     /// <summary>
     /// Reads data asynchronously from the current <see cref="UsbEndpointReader"/>.
     /// </summary>

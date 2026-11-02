@@ -1,5 +1,10 @@
 # LibUsbDotNet
 
+> Development fork: `BeanPaste.LibUsbDotNet` (same assembly and namespaces).
+> Local engineering validation only; not a published release. Upstream badges below describe upstream, not this fork.
+> See [lifecycle and hotplug behavior](docs/LIFECYCLE_AND_HOTPLUG.md), [read-only USB probe](tools/UsbProbe/README.md),
+> [P0 test report](tests/P0_USB_LIFECYCLE_TEST_REPORT.md), and [baseline / distribution gate](docs/P0_BASELINE.md).
+
 [![Build](https://github.com/LibUsbDotNet/LibUsbDotNet/actions/workflows/build.yml/badge.svg)](https://github.com/LibUsbDotNet/LibUsbDotNet/actions/workflows/build.yml)
 [![CodeQL](https://github.com/LibUsbDotNet/LibUsbDotNet/actions/workflows/codeql.yml/badge.svg)](https://github.com/LibUsbDotNet/LibUsbDotNet/actions/workflows/codeql.yml)
 [![NuGet version](https://img.shields.io/nuget/v/LibUsbDotNet.svg)](https://www.nuget.org/packages/LibUsbDotNet/)

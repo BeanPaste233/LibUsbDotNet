@@ -25,7 +25,6 @@ using LibUsbDotNet.Main;
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading;
 
 namespace LibUsbDotNet.LibUsb;
 
@@ -287,28 +286,36 @@ public partial class UsbDevice
     }
 
     /// <summary>
-    /// Closes the device.
+    /// Closes the device after cancelling and draining asynchronous transfers.
     /// </summary>
+    /// <remarks>最多等待 5 秒；超时保留句柄和事件线程，待最终回调后可重试 Close。禁止在原生事件线程调用。</remarks>
     public void Close()
     {
-        this.EnsureNotDisposed();
+        originatingContext.EnsureNotEventThread();
+        lock (originatingContext.DeviceSync)
+        {
+            this.EnsureNotDisposed();
 
-        if (!this.IsOpen)
-            return;
+            if (!this.IsOpen)
+                return;
 
-        bool shouldStopHandlingEvents = originatingContext.OpenDevices.Count == 1 && !originatingContext.IsUsingHotplug;
+            bool shouldStopHandlingEvents = originatingContext.OpenDevices.Count == 1 && !originatingContext.IsUsingHotplug;
 
-        if (shouldStopHandlingEvents)
-            Interlocked.Exchange(ref originatingContext.stopHandlingEvents, 1);
+            if (!AsyncTransfer.CancelAndDrainAsync(this.deviceHandle).Wait(TimeSpan.FromSeconds(5)))
+                throw new TimeoutException("USB transfers did not drain; the handle and event loop remain alive. Retry Close after completion.");
 
-        this.deviceHandle.Dispose();
-        this.deviceHandle = null;
+            this.deviceHandle.Dispose();
+            this.deviceHandle = null;
+            // claim 与 alt 缓存属于刚关闭的原生句柄，重开后必须重新 claim。
+            this.mClaimedInterfaces.Clear();
+            Array.Clear(this.usbAltInterfaceSettings, 0, this.usbAltInterfaceSettings.Length);
 
-        if (shouldStopHandlingEvents)
-            originatingContext.StopHandlingEvents();
+            if (shouldStopHandlingEvents)
+                originatingContext.StopHandlingEvents();
 
-        if (!originatingContext.IsDisposing)
-            originatingContext.OpenDevices.Remove(this);
+            if (!originatingContext.IsDisposing)
+                originatingContext.OpenDevices.Remove(this);
+        }
     }
 
     /// <summary>
@@ -324,26 +331,38 @@ public partial class UsbDevice
 
     private Error OpenNative()
     {
-        this.EnsureNotDisposed();
-
-        if (this.IsOpen)
+        lock (originatingContext.DeviceSync)
         {
-            return Error.Success;
+            this.EnsureNotDisposed();
+            if (originatingContext.IsDisposing) throw new ObjectDisposedException(nameof(UsbContext));
+
+            if (this.IsOpen)
+            {
+                return Error.Success;
+            }
+
+            var ret = originatingContext.OpenDevice(this.device, out var deviceHandle);
+
+            if (ret == Error.Success)
+            {
+                this.deviceHandle = deviceHandle;
+                this.descriptor = null;
+                try
+                {
+                    AsyncTransfer.BindContext(this.deviceHandle, originatingContext);
+                    // 轮询热插拔不会启动原生事件线程；打开设备时必须单独保证 I/O 完成通知运行。
+                    originatingContext.StartHandlingEvents();
+                    originatingContext.OpenDevices.Add(this);
+                }
+                catch
+                {
+                    this.deviceHandle.Dispose();
+                    this.deviceHandle = null;
+                    throw;
+                }
+            }
+
+            return ret;
         }
-
-        IntPtr deviceHandle = IntPtr.Zero;
-        var ret = NativeMethods.Open(this.device, ref deviceHandle);
-
-        if (ret == Error.Success)
-        {
-            this.deviceHandle = DeviceHandle.DangerousCreate(deviceHandle);
-            this.descriptor = null;
-            if (originatingContext.OpenDevices.Count == 0 && !originatingContext.IsUsingHotplug)
-                originatingContext.StartHandlingEvents();
-            if (!originatingContext.IsDisposing)
-                originatingContext.OpenDevices.Add(this);
-        }
-
-        return ret;
     }
 }

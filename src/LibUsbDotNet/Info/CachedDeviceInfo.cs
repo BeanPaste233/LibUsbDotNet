@@ -4,13 +4,20 @@ namespace LibUsbDotNet.Info;
 
 public class CachedDeviceInfo
 {
-    private readonly UsbDevice _device;
+    private readonly int _deviceHashCode;
 
     public CachedDeviceInfo(UsbDevice device)
     {
-        _device = device;
-        Descriptor = _device.Descriptor;
-        PortInfo = _device.LocationId;
+        _deviceHashCode = device.GetHashCode();
+        Descriptor = device.Descriptor;
+        PortInfo = device.LocationId;
+    }
+
+    internal CachedDeviceInfo(UsbDeviceInfo descriptor, LocationId portInfo, int deviceHashCode)
+    {
+        Descriptor = descriptor;
+        PortInfo = portInfo;
+        _deviceHashCode = deviceHashCode;
     }
 
     public UsbDeviceInfo Descriptor { get; }
@@ -21,5 +28,5 @@ public class CachedDeviceInfo
         return GetHashCode() == other.GetHashCode();
     }
 
-    public override int GetHashCode() => _device.GetHashCode();
+    public override int GetHashCode() => _deviceHashCode;
 }

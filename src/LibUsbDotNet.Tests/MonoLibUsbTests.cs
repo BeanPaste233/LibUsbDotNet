@@ -32,6 +32,7 @@ public class MonoLibUsbTests
     public unsafe void GetVersion()
     {
         var version = NativeMethods.GetVersion();
+        System.Console.WriteLine($"libusb-native-version={version->Major}.{version->Minor}.{version->Micro}.{version->Nano}");
         Assert.Equal(1, version->Major);
     }
 

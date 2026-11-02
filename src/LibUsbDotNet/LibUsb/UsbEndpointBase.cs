@@ -25,6 +25,7 @@ using LibUsbDotNet.Main;
 using System;
 using System.Buffers;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace LibUsbDotNet.LibUsb;
@@ -201,7 +202,12 @@ public abstract class UsbEndpointBase
     /// use the <see cref="TransferAsync(Memory{byte},int)"/> method.
     /// </remarks>
     protected async Task<(Error error, int transferLength)> TransferAsync(ReadOnlyMemory<byte> readOnlyBuffer, int timeout)
+        => await TransferAsync(readOnlyBuffer, timeout, default).ConfigureAwait(false);
+
+    /// <summary>发送只读缓冲区并支持取消；取消完成前不会归还临时缓冲区。</summary>
+    protected async Task<(Error error, int transferLength)> TransferAsync(ReadOnlyMemory<byte> readOnlyBuffer, int timeout, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var buffer = ArrayPool<byte>.Shared.Rent(readOnlyBuffer.Length);
 
         try
@@ -223,7 +229,7 @@ public abstract class UsbEndpointBase
             // to a temporary buffer here.
             readOnlyBuffer.CopyTo(buffer);
 
-            return await TransferAsync(buffer.AsMemory(0, readOnlyBuffer.Length), timeout).ConfigureAwait(false);
+            return await TransferAsync(buffer.AsMemory(0, readOnlyBuffer.Length), timeout, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -239,6 +245,10 @@ public abstract class UsbEndpointBase
     /// <returns>Named tuple of <see cref="Error"/> and transferLength</returns>
     protected Task<(Error error, int transferLength)> TransferAsync(Memory<byte> buffer, int timeout) =>
         AsyncTransfer.TransferAsync(this.Device.DeviceHandle, this.mEpNum, this.mEndpointType, buffer, timeout);
+
+    /// <summary>提交可取消传输；Task 完成前调用方不得复用缓冲区。</summary>
+    protected Task<(Error error, int transferLength)> TransferAsync(Memory<byte> buffer, int timeout, CancellationToken cancellationToken) =>
+        AsyncTransfer.TransferAsync(this.Device.DeviceHandle, this.mEpNum, this.mEndpointType, buffer, timeout, cancellationToken: cancellationToken);
 
     /// <summary>
     /// Looks up endpoint/interface information in a configuration.
